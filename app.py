@@ -212,6 +212,31 @@ class StorybookLogger:
             status = "✅" if success else "❌"
             self.logger.info(f"{status} {api_name} API调用 - {filename}")
     
+    def log_api_request_without_session(self, api_name, request_data, response_data, success=True):
+        """记录API请求和响应（无会话版本，用于用户输入分析）"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # 精确到毫秒
+        filename = f"{timestamp}_{api_name}_{'success' if success else 'error'}.json"
+        
+        log_data = {
+            "timestamp": datetime.now().isoformat(),
+            "api": api_name,
+            "success": success,
+            "request": request_data,
+            "response": response_data
+        }
+        
+        # 创建临时日志文件夹
+        temp_logs_folder = os.path.join("logs", "temp_api_logs")
+        os.makedirs(temp_logs_folder, exist_ok=True)
+        
+        log_path = os.path.join(temp_logs_folder, filename)
+        with open(log_path, 'w', encoding='utf-8') as f:
+            json.dump(log_data, f, ensure_ascii=False, indent=2)
+        
+        # 控制台输出
+        status = "✅" if success else "❌"
+        print(f"{status} {api_name} API调用（临时） - {filename}")
+    
     def save_story(self, pages):
         """保存生成的故事"""
         if not self.session_folder:
@@ -297,6 +322,7 @@ class StoryBookGenerator:
         self.character_descriptions = {}
         self.scene_descriptions = {}
         self.logger_instance = None
+        self.selected_style = 'default'
         
         # Gemini API配置
         self.gemini_api_key = os.getenv('GEMINI_API_KEY', app.config.get('GEMINI_API_KEY'))
@@ -317,11 +343,21 @@ class StoryBookGenerator:
         }
         
     @api_retry(max_retries=3, retry_on_quota=True)
-    def generate_story_structure(self, theme, main_character, setting):
+    def generate_story_structure(self, theme, main_character, setting, user_story_content=None):
         """第一步：生成故事结构、角色和场景的详细描述"""
+        # 构建用户故事内容部分
+        user_content_part = ""
+        if user_story_content:
+            user_content_part = f"""
+        
+        用户希望的故事内容：{user_story_content}
+        
+        请特别注意：必须严格按照用户要求的故事内容来创作，不能偏离用户的意图。
+        """
+        
         prompt = f"""
         请为儿童创作一个关于{main_character}在{setting}的故事。
-        主题：{theme}
+        主题：{theme}{user_content_part}
         
         第一步，请提供：
         1. 故事的整体情节概要
@@ -617,6 +653,28 @@ class StoryBookGenerator:
         
         return pages[:10]  # 确保只有10页
     
+    def get_style_prompt(self):
+        """根据选择的画风返回对应的样式提示词"""
+        style_prompts = {
+            'default': 'A painterly gouache illustration for a children\'s book. Soft, illustrative style with naturalistic proportions, subtle expressions, and textured brushwork. No harsh outlines. The color palette is muted earth tones and dusty pastels, with atmospheric, natural lighting. The mood is calm, wondrous, and timeless.',
+            'photography': 'Photorealistic, professional photography style. High detail, realistic lighting, natural textures, crisp focus. Shot with professional camera, studio lighting setup.',
+            'concept-art': 'Digital concept art style. Fantasy or sci-fi theme, dramatic lighting, detailed environments, ethereal atmosphere. Matte painting style with rich details and atmospheric perspective.',
+            'cartoon': 'Cartoon/anime style illustration. Bold outlines, vibrant colors, exaggerated expressions, animated character design. Cell-shaded or traditional animation style.',
+            'painting': 'Classical painting style. Oil painting or watercolor technique, artistic brushstrokes, rich colors, fine art composition. Museum quality artwork with traditional painting methods.',
+            'pixel-art': 'Retro pixel art style. 8-bit or 16-bit game aesthetic, blocky pixels, limited color palette, nostalgic gaming feel. Clean pixel graphics with retro video game styling.',
+            'cyberpunk': 'Cyberpunk/steampunk style. Neon lights, futuristic or Victorian sci-fi elements, metallic textures, dramatic contrasts. High-tech low-life aesthetic with glowing elements.',
+            'low-poly': 'Low-poly 3D art style. Geometric shapes, minimalist design, clean edges, modern digital art aesthetic. Faceted surfaces with bold geometric forms.',
+            'paper-art': 'Paper craft style. Cut paper, origami, layered paper textures, craft-like appearance, handmade feel. Papercut art with dimensional layering effects.',
+            'miyazaki': 'Studio Ghibli style illustration in the manner of Hayao Miyazaki. Soft, dreamy watercolor technique with natural elements, floating objects, magical atmosphere. Lush landscapes, gentle characters, whimsical details, warm lighting, pastoral scenes with wind-blown grass and flowers. Hand-drawn animation aesthetic with organic shapes and flowing movement.'
+        }
+        
+        base_style = style_prompts.get(self.selected_style, style_prompts['default'])
+        
+        # 为所有画风添加儿童友好的要求
+        child_safe_suffix = ' No text, no words, no letters, no Chinese characters, no English text in the image. Child-safe content only, no violence, no blood, no scary elements.'
+        
+        return base_style + child_safe_suffix
+    
     def _format_character_description(self, character):
         """将角色数据格式化为标准化描述"""
         if not character:
@@ -710,7 +768,7 @@ class StoryBookGenerator:
         对于非人类角色，必须详细描述：(race: X; special features: X; fur/skin color: X; body type: X; eye color: X; facial features: X; clothing: X; accessories: X)
         
         然后描述当前动作和表情]
-        style A painterly gouache illustration for a children's book. Soft, illustrative style with naturalistic proportions, subtle expressions, and textured brushwork. No harsh outlines. The color palette is muted earth tones and dusty pastels, with atmospheric, natural lighting. The mood is calm, wondrous, and timeless. No text, no words, no letters, no Chinese characters, no English text in the image. Child-safe content only, no violence, no blood, no scary elements.
+        style {self.get_style_prompt()}
         
         严格要求：
         1. 场景描述要具体生动，包含环境细节
@@ -792,7 +850,7 @@ class StoryBookGenerator:
             # 生成默认提示词
             scene_desc = setting.get('description', 'a magical children\'s book setting')
             character_desc = main_character.get('description', 'a friendly children\'s book character')
-            return f"scene {scene_desc} subjects {character_desc} performing actions related to: {page_text} style A painterly gouache illustration for a children's book. No text, no words, no letters, no Chinese characters, no English text in the image. Child-safe content only, no violence, no blood, no scary elements."
+            return f"scene {scene_desc} subjects {character_desc} performing actions related to: {page_text} style {self.get_style_prompt()}"
     
     def generate_consistent_prompt(self, base_prompt, page_number, is_cover=False):
         """生成保持一致性的Gemini提示词"""
@@ -1002,7 +1060,7 @@ class StoryBookGenerator:
                 # 返回默认提示词
                 scene_desc = story_structure.get("setting", {}).get("description", "magical children's book setting")
                 character_desc = story_structure.get("main_character", {}).get("description", "friendly children's book character")
-                default_prompt = f"scene {scene_desc} subjects {character_desc} performing actions related to: {page_text} style A painterly gouache illustration for a children's book. No text, no words, no letters, no Chinese characters, no English text in the image. Child-safe content only, no violence, no blood, no scary elements."
+                default_prompt = f"scene {scene_desc} subjects {character_desc} performing actions related to: {page_text} style {self.get_style_prompt()}"
                 return key, default_prompt, page_number, is_cover
         
         # 准备所有提示词生成任务
@@ -1039,14 +1097,17 @@ class StoryBookGenerator:
                     key, page_text, page_number, is_cover = task
                     print(f"❌ {key}提示词生成失败: {e}")
                     # 添加默认提示词
-                    default_prompt = f"scene magical children's book setting subjects friendly character performing actions related to: {page_text} style A painterly gouache illustration for a children's book. No text, no words, no letters, no Chinese characters, no English text in the image. Child-safe content only, no violence, no blood, no scary elements."
+                    default_prompt = f"scene magical children's book setting subjects friendly character performing actions related to: {page_text} style {self.get_style_prompt()}"
                     prompts_data.append((key, default_prompt, page_number, is_cover))
         
         print(f"✅ 所有提示词生成完成，共{len(prompts_data)}个")
         return prompts_data
      
-    def create_storybook(self, theme, main_character, setting, character_desc=None, scene_desc=None):
+    def create_storybook(self, theme, main_character, setting, character_desc=None, scene_desc=None, user_story_content=None, selected_style='default'):
         """创建完整的绘本（新的两步生成流程）"""
+        # 保存选择的画风
+        self.selected_style = selected_style
+        
         # 创建日志会话
         self.logger_instance = StorybookLogger()
         session_folder = self.logger_instance.create_session(theme, main_character, setting)
@@ -1057,7 +1118,7 @@ class StoryBookGenerator:
         
         # 第一步：生成故事结构和详细描述
         print("📝 第一步：生成故事结构和角色场景描述...")
-        structure_result = self.generate_story_structure(theme, main_character, setting)
+        structure_result = self.generate_story_structure(theme, main_character, setting, user_story_content)
         if not structure_result["success"]:
             return structure_result
         
@@ -1154,7 +1215,7 @@ class StoryBookGenerator:
         cover_result = all_results.get("cover", {"success": False, "error": "Cover generation failed"})
         cover_audio = audio_results.get("cover", {"success": False, "error": "Audio generation failed"})
         # 从prompts_data中获取封面提示词
-        cover_prompt = next((prompt for key, prompt, page_number, is_cover in prompts_data if is_cover), "scene magical storybook setting subjects friendly character in engaging pose style A painterly gouache illustration for a children's book cover. No text, no words, no letters, no Chinese characters, no English text in the image. Child-safe content only, no violence, no blood, no scary elements.")
+        cover_prompt = next((prompt for key, prompt, page_number, is_cover in prompts_data if is_cover), f"scene magical storybook setting subjects friendly character in engaging pose style {self.get_style_prompt().replace('A painterly gouache illustration for a children\'s book', 'A cover illustration for a children\'s book')}")
         storybook_data["cover"] = {
             "image_prompt": cover_prompt,
             "image_data": cover_result.get("image_data", ""),
@@ -1303,7 +1364,8 @@ class StoryBookGenerator:
             "character": "主角名称", 
             "setting": "故事场景",
             "character_desc": "详细的角色描述，包括外观特征",
-            "scene_desc": "详细的场景描述，包括环境和氛围"
+            "scene_desc": "详细的场景描述，包括环境和氛围",
+            "user_story_content": "用户想要的具体故事内容和人物行为描述"
         }}
         
         要求：
@@ -1335,9 +1397,14 @@ class StoryBookGenerator:
                 analysis_text = response.text.strip()
                 
                 # 记录API响应
-                if self.logger_instance:
+                if hasattr(self, 'logger_instance') and self.logger_instance:
                     response_data = {"text": analysis_text, "model": "gemini-2.0-flash"}
                     self.logger_instance.log_api_request("gemini_user_input_analysis", request_data, response_data, True)
+                else:
+                    # 临时创建logger来记录用户输入分析
+                    temp_logger = StorybookLogger()
+                    response_data = {"text": analysis_text, "model": "gemini-2.0-flash"}
+                    temp_logger.log_api_request_without_session("gemini_user_input_analysis", request_data, response_data, True)
                 
                 print("✅ 用户输入分析完成")
                 
@@ -1352,14 +1419,14 @@ class StoryBookGenerator:
                         analysis_json = json.loads(json_match.group())
                         
                         # 验证必要字段
-                        required_fields = ['theme', 'character', 'setting', 'character_desc', 'scene_desc']
+                        required_fields = ['theme', 'character', 'setting', 'character_desc', 'scene_desc', 'user_story_content']
                         if all(field in analysis_json for field in required_fields):
                             print(f"✅ AI分析结果：主题={analysis_json['theme']}, 角色={analysis_json['character']}")
                             return {"success": True, "analysis": analysis_json}
                     except json.JSONDecodeError as json_error:
                         print(f"⚠️ JSON解析失败: {json_error}")
                         # 记录JSON解析错误
-                        if self.logger_instance:
+                        if hasattr(self, 'logger_instance') and self.logger_instance:
                             error_data = {"error": f"JSON解析失败: {str(json_error)}", "raw_text": analysis_text}
                             self.logger_instance.log_api_request("user_input_analysis_json_error", request_data, error_data, False)
                 
@@ -1525,7 +1592,7 @@ class StoryBookGenerator:
         对于非人类角色，必须详细描述：(race: X; special features: X; fur/skin color: X; body type: X; eye color: X; facial features: X; clothing: X; accessories: X)
         
         然后描述封面姿态和表情]
-        style A painterly gouache illustration for a children's book cover. Bright, inviting colors with a magical, storybook atmosphere. The composition should be engaging and attract children to read the book. No text, no words, no letters, no Chinese characters, no English text in the image. Child-safe content only, no violence, no blood, no scary elements.
+        style {self.get_style_prompt().replace('A painterly gouache illustration for a children\'s book', 'A cover illustration for a children\'s book')}
         
         严格要求：
         1. 封面要体现故事的核心主题和氛围
@@ -1602,7 +1669,7 @@ class StoryBookGenerator:
             # 生成默认封面提示词
             scene_desc = setting.get('description', 'a magical children\'s book setting')
             character_desc = main_character.get('description', 'a friendly children\'s book character')
-            return f"scene {scene_desc} subjects {character_desc} in an engaging pose that captures the story's essence style A painterly gouache illustration for a children's book cover. Bright, inviting colors with a magical, storybook atmosphere. No text, no words, no letters, no Chinese characters, no English text in the image. Child-safe content only, no violence, no blood, no scary elements."
+            return f"scene {scene_desc} subjects {character_desc} in an engaging pose that captures the story's essence style {self.get_style_prompt().replace('A painterly gouache illustration for a children\'s book', 'A cover illustration for a children\'s book')}"
     
     def export_to_pdf(self, storybook_data):
         """导出绘本为PDF"""
@@ -1844,6 +1911,7 @@ def api_generate_story_from_chat():
     try:
         data = request.json
         user_input = data.get('user_input', '')
+        selected_style = data.get('selected_style', 'default')
         
         if not user_input:
             return jsonify({"success": False, "error": "用户输入不能为空"})
@@ -1861,7 +1929,9 @@ def api_generate_story_from_chat():
             analysis["character"], 
             analysis["setting"],
             analysis["character_desc"], 
-            analysis["scene_desc"]
+            analysis["scene_desc"],
+            analysis["user_story_content"],
+            selected_style
         )
         
         if result["success"]:
@@ -1881,12 +1951,13 @@ def api_generate_story():
     setting = data.get('setting', '')
     character_desc = data.get('character_desc', '')
     scene_desc = data.get('scene_desc', '')
+    selected_style = data.get('selected_style', 'default')
     
     if not all([theme, main_character, setting]):
         return jsonify({"success": False, "error": "缺少必要参数"})
     
     result = storybook_generator.create_storybook(
-        theme, main_character, setting, character_desc, scene_desc
+        theme, main_character, setting, character_desc, scene_desc, None, selected_style
     )
     
     return jsonify(result)
@@ -1990,6 +2061,201 @@ def api_text_to_speech():
         
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/refresh_from_logs', methods=['POST'])
+def api_refresh_from_logs():
+    """从日志中刷新绘本内容API"""
+    try:
+        # 获取最新的日志会话文件夹
+        logs_dir = "logs"
+        if not os.path.exists(logs_dir):
+            return jsonify({"success": False, "error": "日志目录不存在"})
+        
+        # 获取所有会话文件夹，按文件夹名称中的时间戳排序
+        session_folders = []
+        for folder_name in os.listdir(logs_dir):
+            folder_path = os.path.join(logs_dir, folder_name)
+            if os.path.isdir(folder_path) and not folder_name.startswith('temp'):
+                # 检查是否有完整的会话数据
+                story_json_path = os.path.join(folder_path, "story.json")
+                session_info_path = os.path.join(folder_path, "session_info.json")
+                if os.path.exists(story_json_path) and os.path.exists(session_info_path):
+                    # 提取文件夹名称中的时间戳 (格式: YYYYMMDD_HHMMSS_主题_角色)
+                    try:
+                        timestamp_part = folder_name.split('_')[:2]  # 获取日期和时间部分
+                        if len(timestamp_part) == 2:
+                            timestamp_str = f"{timestamp_part[0]}_{timestamp_part[1]}"
+                            # 将时间戳转换为可比较的格式
+                            from datetime import datetime
+                            folder_time = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
+                            session_folders.append((folder_path, folder_time, folder_name))
+                        else:
+                            # 如果文件夹名格式不标准，使用文件系统时间
+                            folder_stat = os.stat(folder_path)
+                            folder_time = datetime.fromtimestamp(max(folder_stat.st_ctime, folder_stat.st_mtime))
+                            session_folders.append((folder_path, folder_time, folder_name))
+                    except (ValueError, IndexError):
+                        # 如果解析时间戳失败，使用文件系统时间
+                        folder_stat = os.stat(folder_path)
+                        folder_time = datetime.fromtimestamp(max(folder_stat.st_ctime, folder_stat.st_mtime))
+                        session_folders.append((folder_path, folder_time, folder_name))
+        
+        if not session_folders:
+            return jsonify({"success": False, "error": "没有找到有效的会话日志"})
+        
+        # 按时间戳排序，获取最新的会话
+        session_folders.sort(key=lambda x: x[1], reverse=True)
+        latest_session = session_folders[0][0]
+        latest_session_name = session_folders[0][2]
+        
+        print(f"🔄 从最新会话刷新绘本数据: {latest_session_name}")
+        print(f"   会话时间: {session_folders[0][1]}")
+        print(f"   会话路径: {latest_session}")
+        
+        # 读取会话信息
+        session_info_path = os.path.join(latest_session, "session_info.json")
+        with open(session_info_path, 'r', encoding='utf-8') as f:
+            session_info = json.load(f)
+        
+        # 读取故事内容
+        story_json_path = os.path.join(latest_session, "story.json")
+        with open(story_json_path, 'r', encoding='utf-8') as f:
+            story_data = json.load(f)
+        
+        # 构建绘本数据结构
+        pages = story_data.get("pages", [])
+        images_dir = os.path.join(latest_session, "images")
+        
+        # 构建绘本数据
+        storybook_data = {
+            "id": str(uuid.uuid4()),
+            "theme": session_info.get("theme", ""),
+            "main_character": session_info.get("main_character", ""),
+            "setting": session_info.get("setting", ""),
+            "created_at": session_info.get("start_time", ""),
+            "session_folder": latest_session,
+            "pages": []
+        }
+        
+        # 处理每一页的数据
+        for i, page_text in enumerate(pages):
+            page_number = i + 1
+            page_data = {
+                "page_number": page_number,
+                "text": page_text,
+                "image_data": "",
+                "image_url": "",
+                "success": False,
+                "audio_url": "",
+                "audio_duration": 0,
+                "audio_success": False
+            }
+            
+            # 尝试读取对应的图片文件
+            image_filename = f"page_{page_number:02d}.png"
+            image_path = os.path.join(images_dir, image_filename)
+            
+            if os.path.exists(image_path):
+                try:
+                    # 将图片转换为base64
+                    with open(image_path, 'rb') as img_file:
+                        image_bytes = img_file.read()
+                        image_data = base64.b64encode(image_bytes).decode('utf-8')
+                        page_data["image_data"] = image_data
+                        page_data["success"] = True
+                        print(f"✅ 成功加载第{page_number}页图片")
+                except Exception as e:
+                    print(f"❌ 加载第{page_number}页图片失败: {e}")
+            else:
+                print(f"⚠️ 第{page_number}页图片不存在: {image_path}")
+            
+            # 检查是否存在对应的音频文件
+            # 音频文件通常存储在static/audio目录下
+            audio_pattern = f"audio_page_{page_number}_*.mp3"
+            audio_dir = os.path.join("static", "audio")
+            if os.path.exists(audio_dir):
+                import glob
+                audio_files = glob.glob(os.path.join(audio_dir, audio_pattern))
+                if audio_files:
+                    # 使用最新的音频文件
+                    latest_audio = max(audio_files, key=os.path.getctime)
+                    audio_filename = os.path.basename(latest_audio)
+                    page_data["audio_url"] = f"/static/audio/{audio_filename}"
+                    page_data["audio_success"] = True
+                    page_data["audio_duration"] = storybook_generator._get_audio_duration(page_text) if hasattr(storybook_generator, '_get_audio_duration') else len(page_text) * 0.15
+                    print(f"✅ 成功加载第{page_number}页音频: {audio_filename}")
+            
+            storybook_data["pages"].append(page_data)
+        
+        # 处理封面
+        cover_data = {
+            "image_data": "",
+            "image_url": "",
+            "success": False,
+            "audio_url": "",
+            "audio_duration": 0,
+            "audio_success": False
+        }
+        
+        # 尝试读取封面图片
+        cover_path = os.path.join(images_dir, "cover.png")
+        if os.path.exists(cover_path):
+            try:
+                with open(cover_path, 'rb') as img_file:
+                    image_bytes = img_file.read()
+                    image_data = base64.b64encode(image_bytes).decode('utf-8')
+                    cover_data["image_data"] = image_data
+                    cover_data["success"] = True
+                    print("✅ 成功加载封面图片")
+            except Exception as e:
+                print(f"❌ 加载封面图片失败: {e}")
+        else:
+            print(f"⚠️ 封面图片不存在: {cover_path}")
+        
+        # 检查是否存在封面音频文件
+        audio_pattern = f"audio_cover_*.mp3"
+        audio_dir = os.path.join("static", "audio")
+        if os.path.exists(audio_dir):
+            import glob
+            audio_files = glob.glob(os.path.join(audio_dir, audio_pattern))
+            if audio_files:
+                # 使用最新的音频文件
+                latest_audio = max(audio_files, key=os.path.getctime)
+                audio_filename = os.path.basename(latest_audio)
+                cover_data["audio_url"] = f"/static/audio/{audio_filename}"
+                cover_data["audio_success"] = True
+                cover_data["audio_duration"] = 30  # 封面音频默认30秒
+                print(f"✅ 成功加载封面音频: {audio_filename}")
+        
+        storybook_data["cover"] = cover_data
+        
+        # 更新当前绘本数据
+        storybook_generator.current_storybook = storybook_data
+        
+        # 统计成功加载的图片数量
+        successful_pages = sum(1 for page in storybook_data["pages"] if page["success"])
+        total_pages = len(storybook_data["pages"])
+        cover_success = cover_data["success"]
+        
+        print(f"✅ 绘本数据刷新完成: 成功加载 {successful_pages}/{total_pages} 页图片" + 
+              (f"，封面{'成功' if cover_success else '失败'}" if cover_success is not None else ""))
+        
+        return jsonify({
+            "success": True,
+            "storybook": storybook_data,
+            "session_folder": latest_session,
+            "refresh_stats": {
+                "total_pages": total_pages,
+                "successful_pages": successful_pages,
+                "cover_success": cover_success,
+                "session_name": os.path.basename(latest_session)
+            }
+        })
+        
+    except Exception as e:
+        error_msg = f"从日志刷新失败: {str(e)}"
+        print(f"❌ {error_msg}")
+        return jsonify({"success": False, "error": error_msg})
 
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'], host=app.config['HOST'], port=app.config['PORT'])

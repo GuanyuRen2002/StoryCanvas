@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画风选择演示</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+        
+        .style-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .style-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            border: 3px solid #e9ecef;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .style-card:hover {
+            transform: translateY(-5px);
+            border-color: #667eea;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .style-card.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .style-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+        
+        .style-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .style-desc {
+            font-size: 14px;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+        
+        .demo-section {
+            margin-top: 40px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+        
+        .prompt-preview {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .selected-style {
+            color: #667eea;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 StoryCanvas 画风选择功能演示</h1>
+        
+        <p style="text-align: center; margin-bottom: 30px; color: #6c757d;">
+            ✨ 新版本：点击头部展开画风选择器，支持滚动查看所有选项！
+        </p>
+        
+        <!-- 模拟新版画风选择器 -->
+        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 16px; padding: 20px; margin: 20px 0; border: 2px solid #e9ecef; position: relative;" id="demoSelector">
+            <div style="display: flex; align-items: center; justify-content: space-between; font-weight: 600; color: #495057; font-size: 16px; cursor: pointer; user-select: none; padding: 5px 0;" onclick="toggleDemo()">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px; background: linear-gradient(135deg, #667eea, #764ba2); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">🎨</span>
+                    <span>选择画风</span>
+                </div>
+                <span id="expandIcon" style="font-size: 14px; color: #6c757d; transition: transform 0.3s ease;">▼</span>
+            </div>
+            
+            <!-- 当前选中画风显示 -->
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 12px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; border-left: 4px solid #667eea;">
+                <div id="currentIcon" style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; background: #667eea; color: white;">🖼️</div>
+                <div style="flex: 1;">
+                    <div id="currentName" style="font-weight: 600; color: #495057; font-size: 14px; margin-bottom: 2px;">儿童绘本</div>
+                    <div id="currentDesc" style="font-size: 12px; color: #6c757d; opacity: 0.8;">温馨水彩风格</div>
+                </div>
+            </div>
+            
+            <div id="optionsContainer" style="max-height: 0; overflow: hidden; transition: max-height 0.4s ease; margin-top: 15px;">
+                <div style="max-height: 300px; overflow-y: auto; padding: 5px 0;">
+                    <div class="style-grid">
+                        <!-- 原有的画风选项 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="style-grid">
+            <div class="style-card active" data-style="default">
+                <div class="style-icon">🖼️</div>
+                <div class="style-name">儿童绘本</div>
+                <div class="style-desc">温馨水彩风格，柔和自然</div>
+            </div>
+            
+            <div class="style-card" data-style="photography">
+                <div class="style-icon">📸</div>
+                <div class="style-name">摄影写实</div>
+                <div class="style-desc">逼真照片级别效果</div>
+            </div>
+            
+            <div class="style-card" data-style="concept-art">
+                <div class="style-icon">🔮</div>
+                <div class="style-name">概念艺术</div>
+                <div class="style-desc">幻想科幻大师级作品</div>
+            </div>
+            
+            <div class="style-card" data-style="cartoon">
+                <div class="style-icon">🎭</div>
+                <div class="style-name">卡通漫画</div>
+                <div class="style-desc">动画风格，色彩鲜明</div>
+            </div>
+            
+            <div class="style-card" data-style="painting">
+                <div class="style-icon">🎨</div>
+                <div class="style-name">艺术绘画</div>
+                <div class="style-desc">油画水彩艺术效果</div>
+            </div>
+            
+            <div class="style-card" data-style="pixel-art">
+                <div class="style-icon">🕹️</div>
+                <div class="style-name">像素艺术</div>
+                <div class="style-desc">复古8位游戏风格</div>
+            </div>
+            
+            <div class="style-card" data-style="cyberpunk">
+                <div class="style-icon">🌃</div>
+                <div class="style-name">赛博朋克</div>
+                <div class="style-desc">未来科幻霓虹风格</div>
+            </div>
+            
+            <div class="style-card" data-style="low-poly">
+                <div class="style-icon">💎</div>
+                <div class="style-name">低多边形</div>
+                <div class="style-desc">几何现代艺术风格</div>
+            </div>
+            
+            <div class="style-card" data-style="paper-art">
+                <div class="style-icon">📄</div>
+                <div class="style-name">剪纸艺术</div>
+                <div class="style-desc">手工纸艺折纸风格</div>
+            </div>
+            
+            <div class="style-card" data-style="miyazaki">
+                <div class="style-icon">🌸</div>
+                <div class="style-name">宫崎骏风格</div>
+                <div class="style-desc">梦幻自然童话风格</div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h3>📝 当前选择的画风: <span class="selected-style" id="currentStyle">儿童绘本</span></h3>
+            <p>以下是该画风对应的AI提示词：</p>
+            <div class="prompt-preview" id="promptPreview">
+                A painterly gouache illustration for a children's book. Soft, illustrative style with naturalistic proportions, subtle expressions, and textured brushwork. No harsh outlines. The color palette is muted earth tones and dusty pastels, with atmospheric, natural lighting. The mood is calm, wondrous, and timeless. No text, no words, no letters, no Chinese characters, no English text in the image. Child-safe content only, no violence, no blood, no scary elements.
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const stylePrompts = {
+            'default': 'A painterly gouache illustration for a children\'s book. Soft, illustrative style with naturalistic proportions, subtle expressions, and textured brushwork. No harsh outlines. The color palette is muted earth tones and dusty pastels, with atmospheric, natural lighting. The mood is calm, wondrous, and timeless.',
+            'photography': 'Photorealistic, professional photography style. High detail, realistic lighting, natural textures, crisp focus. Shot with professional camera, studio lighting setup.',
+            'concept-art': 'Digital concept art style. Fantasy or sci-fi theme, dramatic lighting, detailed environments, ethereal atmosphere. Matte painting style with rich details and atmospheric perspective.',
+            'cartoon': 'Cartoon/anime style illustration. Bold outlines, vibrant colors, exaggerated expressions, animated character design. Cell-shaded or traditional animation style.',
+            'painting': 'Classical painting style. Oil painting or watercolor technique, artistic brushstrokes, rich colors, fine art composition. Museum quality artwork with traditional painting methods.',
+            'pixel-art': 'Retro pixel art style. 8-bit or 16-bit game aesthetic, blocky pixels, limited color palette, nostalgic gaming feel. Clean pixel graphics with retro video game styling.',
+            'cyberpunk': 'Cyberpunk/steampunk style. Neon lights, futuristic or Victorian sci-fi elements, metallic textures, dramatic contrasts. High-tech low-life aesthetic with glowing elements.',
+            'low-poly': 'Low-poly 3D art style. Geometric shapes, minimalist design, clean edges, modern digital art aesthetic. Faceted surfaces with bold geometric forms.',
+            'paper-art': 'Paper craft style. Cut paper, origami, layered paper textures, craft-like appearance, handmade feel. Papercut art with dimensional layering effects.',
+            'miyazaki': 'Studio Ghibli style illustration in the manner of Hayao Miyazaki. Soft, dreamy watercolor technique with natural elements, floating objects, magical atmosphere. Lush landscapes, gentle characters, whimsical details, warm lighting, pastoral scenes with wind-blown grass and flowers. Hand-drawn animation aesthetic with organic shapes and flowing movement.'
+        };
+        
+        const styleNames = {
+            'default': '儿童绘本',
+            'photography': '摄影写实',
+            'concept-art': '概念艺术',
+            'cartoon': '卡通漫画',
+            'painting': '艺术绘画',
+            'pixel-art': '像素艺术',
+            'cyberpunk': '赛博朋克',
+            'low-poly': '低多边形',
+            'paper-art': '剪纸艺术',
+            'miyazaki': '宫崎骏风格'
+        };
+        
+        const currentStyleElement = document.getElementById('currentStyle');
+        const promptPreviewElement = document.getElementById('promptPreview');
+        
+        function selectStyle(style) {
+            // 更新选中状态
+            document.querySelectorAll('.style-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            document.querySelector(`[data-style="${style}"]`).classList.add('active');
+            
+            // 更新提示词预览
+            const basePrompt = stylePrompts[style] || stylePrompts['default'];
+            const childSafeSuffix = ' No text, no words, no letters, no Chinese characters, no English text in the image. Child-safe content only, no violence, no blood, no scary elements.';
+            
+            currentStyleElement.textContent = styleNames[style] || style;
+            promptPreviewElement.textContent = basePrompt + childSafeSuffix;
+            
+            // 添加选择反馈
+            showFeedback(styleNames[style] || style);
+        }
+        
+        function showFeedback(styleName) {
+            // 创建临时反馈元素
+            const feedback = document.createElement('div');
+            feedback.innerHTML = `🎨 已选择 "${styleName}" 画风`;
+            feedback.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 25px;
+                font-weight: 600;
+                z-index: 1000;
+                opacity: 0;
+                transform: translateX(100px);
+                transition: all 0.3s ease;
+                box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            `;
+            
+            document.body.appendChild(feedback);
+            
+            // 显示动画
+            setTimeout(() => {
+                feedback.style.opacity = '1';
+                feedback.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // 隐藏和移除
+            setTimeout(() => {
+                feedback.style.opacity = '0';
+                feedback.style.transform = 'translateX(100px)';
+                setTimeout(() => feedback.remove(), 300);
+            }, 2500);
+        }
+        
+        // 演示新版选择器的展开/收起
+        let isExpanded = false;
+        
+        function toggleDemo() {
+            const container = document.getElementById('optionsContainer');
+            const icon = document.getElementById('expandIcon');
+            const selector = document.getElementById('demoSelector');
+            
+            if (isExpanded) {
+                container.style.maxHeight = '0';
+                icon.style.transform = 'rotate(0deg)';
+                selector.style.borderColor = '#e9ecef';
+                selector.style.boxShadow = 'none';
+            } else {
+                container.style.maxHeight = '300px';
+                icon.style.transform = 'rotate(180deg)';
+                selector.style.borderColor = '#667eea';
+                selector.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.1)';
+            }
+            isExpanded = !isExpanded;
+        }
+        
+        // 绑定点击事件
+        document.querySelectorAll('.style-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const style = card.dataset.style;
+                selectStyle(style);
+                
+                // 更新演示区域的当前选择
+                updateDemoDisplay(style, card);
+            });
+        });
+        
+        function updateDemoDisplay(style, card) {
+            const currentIcon = document.getElementById('currentIcon');
+            const currentName = document.getElementById('currentName');
+            const currentDesc = document.getElementById('currentDesc');
+            
+            if (currentIcon && currentName && currentDesc) {
+                const icon = card.querySelector('.style-icon').textContent;
+                const name = card.querySelector('.style-name').textContent;
+                const desc = card.querySelector('.style-desc').textContent;
+                
+                currentIcon.textContent = icon;
+                currentName.textContent = name;
+                currentDesc.textContent = desc;
+            }
+        }
+    </script>
+</body>
+</html>

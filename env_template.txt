@@ -1,0 +1,20 @@
+# TaleCanvas环境变量配置模板
+# 将此文件重命名为.env并填入您的真实API密钥
+
+# OpenAI API配置
+OPENAI_API_KEY=sk-your-real-openai-key-here
+
+# Gemini API配置  
+GEMINI_API_KEY=your-real-gemini-api-key-here
+
+# Azure语音服务配置
+SPEECH_API_KEY=your-real-azure-speech-key-here
+SPEECH_REGION=eastus
+
+# Flask配置
+SECRET_KEY=your-custom-secret-key-here
+FLASK_DEBUG=True
+
+# 服务器配置
+HOST=0.0.0.0
+PORT=5000

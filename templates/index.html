@@ -38,6 +38,81 @@
                             <span class="send-icon">🚀</span>
                         </button>
                     </div>
+                    <!-- 画风选择器 -->
+                    <div class="style-selector-container" id="styleSelectorContainer">
+                        <div class="style-selector-header" id="styleSelectorHeader">
+                            <div class="style-header-left">
+                                <span class="style-icon">🎨</span>
+                                <span class="style-label">选择画风</span>
+                            </div>
+                            <span class="style-expand-icon">▼</span>
+                        </div>
+                        
+                        <!-- 当前选中画风显示 -->
+                        <div class="current-style-display" id="currentStyleDisplay">
+                            <div class="current-style-preview" id="currentStylePreview">🖼️</div>
+                            <div class="current-style-info">
+                                <div class="current-style-name" id="currentStyleName">儿童绘本</div>
+                                <div class="current-style-desc" id="currentStyleDesc">温馨水彩风格</div>
+                            </div>
+                        </div>
+                        
+                        <div class="style-options" id="styleOptions">
+                            <div class="style-options-grid">
+                                <div class="style-option active" data-style="default">
+                                    <div class="style-preview">🖼️</div>
+                                    <span class="style-name">儿童绘本</span>
+                                    <span class="style-desc">温馨水彩风格</span>
+                                </div>
+                                <div class="style-option" data-style="photography">
+                                    <div class="style-preview">📸</div>
+                                    <span class="style-name">摄影写实</span>
+                                    <span class="style-desc">逼真的图像</span>
+                                </div>
+                                <div class="style-option" data-style="concept-art">
+                                    <div class="style-preview">🔮</div>
+                                    <span class="style-name">概念艺术</span>
+                                    <span class="style-desc">幻想科幻风格</span>
+                                </div>
+                                <div class="style-option" data-style="cartoon">
+                                    <div class="style-preview">🎭</div>
+                                    <span class="style-name">卡通漫画</span>
+                                    <span class="style-desc">动画风格</span>
+                                </div>
+                                <div class="style-option" data-style="painting">
+                                    <div class="style-preview">🎨</div>
+                                    <span class="style-name">艺术绘画</span>
+                                    <span class="style-desc">油画水彩风格</span>
+                                </div>
+                                <div class="style-option" data-style="pixel-art">
+                                    <div class="style-preview">🕹️</div>
+                                    <span class="style-name">像素艺术</span>
+                                    <span class="style-desc">复古游戏风格</span>
+                                </div>
+                                <div class="style-option" data-style="cyberpunk">
+                                    <div class="style-preview">🌃</div>
+                                    <span class="style-name">赛博朋克</span>
+                                    <span class="style-desc">未来科幻风格</span>
+                                </div>
+                                <div class="style-option" data-style="low-poly">
+                                    <div class="style-preview">💎</div>
+                                    <span class="style-name">低多边形</span>
+                                    <span class="style-desc">几何艺术风格</span>
+                                </div>
+                                <div class="style-option" data-style="paper-art">
+                                    <div class="style-preview">📄</div>
+                                    <span class="style-name">剪纸艺术</span>
+                                    <span class="style-desc">纸艺折纸风格</span>
+                                </div>
+                                <div class="style-option" data-style="miyazaki">
+                                    <div class="style-preview">🌸</div>
+                                    <span class="style-name">宫崎骏风格</span>
+                                    <span class="style-desc">梦幻自然童话风</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="input-hint">
                         <p>💡 你可以告诉我：</p>
                         <ul>
@@ -63,6 +138,7 @@
                         <button id="playBtn" class="audio-btn" title="播放/暂停朗读" disabled>🔊</button>
                         <button id="autoPlayBtn" class="audio-btn" title="自动朗读全书" disabled>📖</button>
                     </div>
+                    <button id="refreshBtn" class="refresh-btn" title="从日志刷新绘本内容">🔄</button>
                     <button id="exportBtn" class="export-btn" style="display: none;">导出PDF</button>
                 </div>
             </div>

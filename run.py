@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TaleCanvas - 智能绘本生成器
+StoryCanvas - 智能绘本生成器
 启动脚本
 """
 
@@ -46,7 +46,7 @@ def check_dependencies():
 
 def main():
     """主函数"""
-    print("🎨 TaleCanvas - 智能绘本生成器")
+    print("🎨 StoryCanvas - 智能绘本生成器")
     print("=" * 50)
     
     if not check_dependencies():

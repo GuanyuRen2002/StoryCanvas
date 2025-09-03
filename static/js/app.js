@@ -3,6 +3,7 @@ class StorybookApp {
         this.currentStorybook = null;
         this.currentPage = -1; // -1 表示封面
         this.isGenerating = false;
+        this.selectedStyle = 'default'; // 默认画风
         
         // 音频相关属性
         this.currentAudio = null;
@@ -29,11 +30,21 @@ class StorybookApp {
         // 音频控制元素
         this.playBtn = document.getElementById('playBtn');
         this.autoPlayBtn = document.getElementById('autoPlayBtn');
+        this.refreshBtn = document.getElementById('refreshBtn');
         
         // 聊天和加载元素
         this.chatMessages = document.getElementById('chatMessages');
         this.loadingOverlay = document.getElementById('loadingOverlay');
         this.loadingDetail = document.getElementById('loadingDetail');
+        
+        // 画风选择器元素
+        this.styleOptions = document.getElementById('styleOptions');
+        this.styleSelectorContainer = document.getElementById('styleSelectorContainer');
+        this.styleSelectorHeader = document.getElementById('styleSelectorHeader');
+        this.currentStyleDisplay = document.getElementById('currentStyleDisplay');
+        this.currentStylePreview = document.getElementById('currentStylePreview');
+        this.currentStyleName = document.getElementById('currentStyleName');
+        this.currentStyleDesc = document.getElementById('currentStyleDesc');
     }
     
     bindEvents() {
@@ -45,6 +56,7 @@ class StorybookApp {
         // 音频控制事件
         this.playBtn.addEventListener('click', () => this.togglePlayback());
         this.autoPlayBtn.addEventListener('click', () => this.toggleAutoPlay());
+        this.refreshBtn.addEventListener('click', () => this.refreshFromLogs());
         
         // 回车键发送消息
         this.userInput.addEventListener('keydown', (e) => {
@@ -67,6 +79,9 @@ class StorybookApp {
                 if (e.key === 'ArrowRight') this.nextPage();
             }
         });
+        
+        // 画风选择事件
+        this.bindStyleSelectorEvents();
     }
     
     addMessage(content, isUser = false) {
@@ -95,6 +110,196 @@ class StorybookApp {
         return messageDiv;
     }
     
+    bindStyleSelectorEvents() {
+        if (!this.styleOptions || !this.styleSelectorHeader) return;
+        
+        // 点击头部切换展开/收起
+        this.styleSelectorHeader.addEventListener('click', (e) => {
+            this.toggleStyleSelector();
+        });
+        
+        // 为每个画风选项添加点击事件
+        this.styleOptions.addEventListener('click', (e) => {
+            const styleOption = e.target.closest('.style-option');
+            if (!styleOption) return;
+            
+            const selectedStyle = styleOption.dataset.style;
+            if (selectedStyle) {
+                this.selectStyle(selectedStyle);
+                // 选择后自动收起
+                this.collapseStyleSelector();
+            }
+        });
+        
+        // 点击外部区域收起
+        document.addEventListener('click', (e) => {
+            if (!this.styleSelectorContainer.contains(e.target)) {
+                this.collapseStyleSelector();
+            }
+        });
+    }
+    
+    toggleStyleSelector() {
+        if (this.styleSelectorContainer.classList.contains('expanded')) {
+            this.collapseStyleSelector();
+        } else {
+            this.expandStyleSelector();
+        }
+    }
+    
+    expandStyleSelector() {
+        this.styleSelectorContainer.classList.add('expanded');
+        this.styleSelectorContainer.classList.add('active');
+    }
+    
+    collapseStyleSelector() {
+        this.styleSelectorContainer.classList.remove('expanded');
+        this.styleSelectorContainer.classList.remove('active');
+    }
+    
+    selectStyle(style) {
+        // 更新选中状态
+        const allOptions = this.styleOptions.querySelectorAll('.style-option');
+        allOptions.forEach(option => {
+            option.classList.remove('active');
+        });
+        
+        const selectedOption = this.styleOptions.querySelector(`[data-style="${style}"]`);
+        if (selectedOption) {
+            selectedOption.classList.add('active');
+            this.selectedStyle = style;
+            
+            // 更新当前选中画风显示
+            this.updateCurrentStyleDisplay(style, selectedOption);
+            
+            // 添加视觉反馈
+            this.showStyleSelectionFeedback(style);
+        }
+    }
+    
+    updateCurrentStyleDisplay(style, selectedOption) {
+        const styleNames = {
+            'default': '儿童绘本',
+            'photography': '摄影写实',
+            'concept-art': '概念艺术',
+            'cartoon': '卡通漫画',
+            'painting': '艺术绘画',
+            'pixel-art': '像素艺术',
+            'cyberpunk': '赛博朋克',
+            'low-poly': '低多边形',
+            'paper-art': '剪纸艺术',
+            'miyazaki': '宫崎骏风格'
+        };
+        
+        const styleDescs = {
+            'default': '温馨水彩风格',
+            'photography': '逼真的图像',
+            'concept-art': '幻想科幻风格',
+            'cartoon': '动画风格',
+            'painting': '油画水彩风格',
+            'pixel-art': '复古游戏风格',
+            'cyberpunk': '未来科幻风格',
+            'low-poly': '几何艺术风格',
+            'paper-art': '纸艺折纸风格',
+            'miyazaki': '梦幻自然童话风'
+        };
+        
+        // 获取图标
+        const previewIcon = selectedOption.querySelector('.style-preview').textContent;
+        
+        // 更新显示
+        if (this.currentStylePreview) {
+            this.currentStylePreview.textContent = previewIcon;
+        }
+        if (this.currentStyleName) {
+            this.currentStyleName.textContent = styleNames[style] || style;
+        }
+        if (this.currentStyleDesc) {
+            this.currentStyleDesc.textContent = styleDescs[style] || '';
+        }
+    }
+    
+    showStyleSelectionFeedback(style) {
+        const styleNames = {
+            'default': '儿童绘本',
+            'photography': '摄影写实',
+            'concept-art': '概念艺术',
+            'cartoon': '卡通漫画',
+            'painting': '艺术绘画',
+            'pixel-art': '像素艺术',
+            'cyberpunk': '赛博朋克',
+            'low-poly': '低多边形',
+            'paper-art': '剪纸艺术',
+            'miyazaki': '宫崎骏风格'
+        };
+        
+        const styleName = styleNames[style] || style;
+        
+        // 创建临时提示消息
+        const feedbackDiv = document.createElement('div');
+        feedbackDiv.className = 'style-feedback';
+        feedbackDiv.innerHTML = `
+            <div class="feedback-content">
+                <span class="feedback-icon">🎨</span>
+                <span class="feedback-text">已选择 "${styleName}" 画风</span>
+            </div>
+        `;
+        
+        // 添加样式
+        feedbackDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        `;
+        
+        document.body.appendChild(feedbackDiv);
+        
+        // 显示动画
+        setTimeout(() => {
+            feedbackDiv.style.opacity = '1';
+            feedbackDiv.style.transform = 'translateX(0)';
+        }, 100);
+        
+        // 隐藏和移除
+        setTimeout(() => {
+            feedbackDiv.style.opacity = '0';
+            feedbackDiv.style.transform = 'translateX(100px)';
+            setTimeout(() => {
+                if (feedbackDiv.parentNode) {
+                    feedbackDiv.parentNode.removeChild(feedbackDiv);
+                }
+            }, 300);
+        }, 2000);
+    }
+    
+    getStylePrompt(baseStyle) {
+        const stylePrompts = {
+            'default': 'A painterly gouache illustration for a children\'s book. Soft, illustrative style with naturalistic proportions, subtle expressions, and textured brushwork. Warm colors, friendly atmosphere.',
+            'photography': 'Photorealistic, professional photography style. High detail, realistic lighting, natural textures, crisp focus.',
+            'concept-art': 'Digital concept art style. Fantasy or sci-fi theme, dramatic lighting, detailed environments, ethereal atmosphere.',
+            'cartoon': 'Cartoon/anime style illustration. Bold outlines, vibrant colors, exaggerated expressions, animated character design.',
+            'painting': 'Classical painting style. Oil painting or watercolor technique, artistic brushstrokes, rich colors, fine art composition.',
+            'pixel-art': 'Retro pixel art style. 8-bit or 16-bit game aesthetic, blocky pixels, limited color palette, nostalgic gaming feel.',
+            'cyberpunk': 'Cyberpunk/steampunk style. Neon lights, futuristic or Victorian sci-fi elements, metallic textures, dramatic contrasts.',
+            'low-poly': 'Low-poly 3D art style. Geometric shapes, minimalist design, clean edges, modern digital art aesthetic.',
+            'paper-art': 'Paper craft style. Cut paper, origami, layered paper textures, craft-like appearance, handmade feel.',
+            'miyazaki': 'Studio Ghibli style illustration in the manner of Hayao Miyazaki. Soft, dreamy watercolor technique with natural elements, floating objects, magical atmosphere.'
+        };
+        
+        return stylePrompts[this.selectedStyle] || stylePrompts['default'];
+    }
+    
     async handleUserInput() {
         const userText = this.userInput.value.trim();
         if (!userText || this.isGenerating) return;
@@ -119,7 +324,8 @@ class StorybookApp {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    user_input: userText
+                    user_input: userText,
+                    selected_style: this.selectedStyle
                 })
             });
             
@@ -504,6 +710,48 @@ class StorybookApp {
     
     hideLoading() {
         this.loadingOverlay.style.display = 'none';
+    }
+    
+    // 从日志刷新绘本内容
+    async refreshFromLogs() {
+        if (this.isGenerating) return;
+        
+        try {
+            this.isGenerating = true;
+            this.refreshBtn.disabled = true;
+            
+            // 添加刷新开始提示
+            const refreshMsg = this.addMessage('🔄 正在从日志中刷新绘本内容...', false);
+            
+            const response = await fetch('/api/refresh_from_logs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // 移除刷新消息
+                refreshMsg.remove();
+                
+                // 静默更新绘本，不显示成功消息
+                this.currentStorybook = result.storybook;
+                this.displayStorybook();
+                
+            } else {
+                // 移除刷新消息
+                refreshMsg.remove();
+                this.addMessage(`❌ 刷新失败: ${result.error}`, false);
+            }
+            
+        } catch (error) {
+            this.addMessage(`❌ 刷新错误: ${error.message}`, false);
+        } finally {
+            this.isGenerating = false;
+            this.refreshBtn.disabled = false;
+        }
     }
 }
 
